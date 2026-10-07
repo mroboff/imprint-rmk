@@ -1160,30 +1160,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
-name = "imprint-rmk"
-version = "0.1.0"
-dependencies = [
- "bt-hci",
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.1.1",
- "defmt-rtt",
- "embassy-executor",
- "embassy-futures",
- "embassy-nrf",
- "embassy-sync",
- "embassy-time",
- "embedded-storage-async",
- "heapless 0.8.0",
- "nrf-mpsl",
- "nrf-sdc",
- "panic-probe",
- "rmk",
- "rmk-palettefx",
- "static_cell",
-]
-
-[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1318,6 +1294,30 @@ name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
+name = "imprint-rmk"
+version = "0.1.0"
+dependencies = [
+ "bt-hci",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-storage-async",
+ "heapless 0.8.0",
+ "nrf-mpsl",
+ "nrf-sdc",
+ "panic-probe",
+ "rmk",
+ "rmk-palettefx",
+ "static_cell",
+]
 
 [[package]]
 name = "indexmap"
