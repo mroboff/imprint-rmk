@@ -39,7 +39,9 @@ jobs:
 
   release-master:
     name: Publish master firmware
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # A push to master, or a run started by hand on master: a fork whose
+    # pushes do not start workflows still gets its release.
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: product-stack
     runs-on: ubuntu-latest
     permissions:
