@@ -1,0 +1,89 @@
+[package]
+name = "imprint-rmk"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Experimental RMK firmware for the Cyboard Imprint"
+
+[workspace]
+
+[dependencies]
+rmk = { path = "../../dependencies/rmk/rmk", default-features = false, features = [
+    "defmt",
+    "storage",
+    "rynk",
+    "watchdog",
+    "nrf52840_ble",
+    "split",
+    # The host-facing peripheral BAS pushes the central past 0xdc000. Internal
+    # split battery state remains enabled; Glove80 carries the BLE service.
+    "_no_split_peripheral_battery_service",
+    "async_matrix",
+    "lighting",
+    "adafruit_bl",
+] }
+nrf-sdc = { git = "https://github.com/colonelpanic8/nrf-sdc", rev = "2dfeabc74b3ed423ace82e527a8bce9b221d6f17", features = [
+    "defmt",
+    "peripheral",
+    "central",
+    "nrf52840",
+] }
+nrf-mpsl = { git = "https://github.com/colonelpanic8/nrf-sdc", rev = "2dfeabc74b3ed423ace82e527a8bce9b221d6f17", features = [
+    "defmt",
+    "critical-section-impl",
+    "nrf52840",
+] }
+bt-hci = { version = "0.10", features = ["defmt"] }
+rmk-palettefx = { path = "../../dependencies/rmk-palettefx", features = ["rmk-lighting"] }
+
+panic-probe = { path = "panic-probe-stub" }
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.5"
+embassy-futures = "0.1"
+embassy-sync = "0.8"
+embedded-storage-async = "0.4"
+heapless = "0.8"
+embassy-time = { version = "0.5", features = ["tick-hz-32_768", "defmt", "defmt-timestamp-uptime"] }
+embassy-nrf = { version = "0.11", features = [
+    "defmt",
+    "nrf52840",
+    "time-driver-rtc1",
+    "gpiote",
+    "unstable-pac",
+    "nfc-pins-as-gpio",
+    "time",
+] }
+embassy-executor = { version = "0.10", features = [
+    "defmt",
+    "platform-cortex-m",
+    "executor-thread",
+] }
+defmt = "1"
+defmt-rtt = "1"
+static_cell = "2"
+
+[patch."https://github.com/colonelpanic8/rmk"]
+rmk = { path = "../../dependencies/rmk/rmk" }
+
+[[bin]]
+name = "imprint_lh"
+path = "src/central.rs"
+
+[[bin]]
+name = "imprint_rh"
+path = "src/peripheral.rs"
+
+[profile.dev]
+codegen-units = 1
+debug = true
+opt-level = 1
+overflow-checks = true
+lto = false
+panic = "unwind"
+
+[profile.release]
+codegen-units = 1
+debug = true
+opt-level = "z"
+overflow-checks = false
+lto = "fat"

@@ -1,10 +1,13 @@
 # moergo-rmk
 
 Shared Glove80 and Go60 firmware plus native control tooling built on
-[RMK](https://github.com/HaoboGu/rmk).
+[RMK](https://github.com/HaoboGu/rmk), and, in this fork, the same firmware
+for the wireless Cyboard Imprint.
 
 The repository and shared firmware layer are named `moergo-rmk`; board-specific
-crates and artifacts retain their Glove80 and Go60 names.
+crates and artifacts retain their Glove80, Go60 and Imprint names. This fork
+adds `crates/imprint-rmk` and publishes its bundle as `imprint-rmk.zip`
+beside the upstream artifacts; it tracks upstream otherwise.
 
 ## Layout
 
@@ -13,6 +16,7 @@ crates/
 ├── moergo-rmk/       # shared embedded services and parity contract
 ├── glove80-rmk/      # Glove80 hardware entry points
 ├── go60-rmk/         # Go60 hardware entry points
+├── imprint-rmk/      # Cyboard Imprint hardware entry points (this fork)
 ├── moergo-config/    # pure runtime configuration model
 ├── moergo-config-wasm/ # browser adapter for the same model
 ├── moergo-control/   # multi-board native Rynk CLI
@@ -22,8 +26,8 @@ dependencies/
 ```
 
 Each board firmware is a standalone Cargo workspace because it cross-compiles
-for the nRF52840. Both compile shared modules from `crates/moergo-rmk/src`
-inside their board binaries; neither board may include source from the other. Native packages share the root workspace. Generated release
+for the nRF52840. All three compile shared modules from `crates/moergo-rmk/src`
+inside their board binaries; no board may include source from another. Native packages share the root workspace. Generated release
 artifacts go in `dist/`.
 
 ## Setup
@@ -102,7 +106,9 @@ manifest under `dist/`. Packaging validates each half's UF2 family ID and the
 application flash range `0x00026000..0x000dc000`.
 
 `just go60-firmware` applies the same validation to the Go60 build and writes
-its independent bundle under `dist/go60/`. It stages tracked inputs at fixed
+its independent bundle under `dist/go60/`; `just imprint-firmware` does the
+same for the Cyboard Imprint under `dist/imprint/`, with the Adafruit
+nRF52840 family id `0xADA52840` for both halves. It stages tracked inputs at fixed
 build paths and seeds RMK's storage build hash from the source commit, RMK
 commit, and platform profile, so identical inputs reproduce identical UF2s.
 

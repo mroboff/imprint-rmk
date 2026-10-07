@@ -29,6 +29,13 @@ jobs:
         with:
           name: go60-rmk
           path: dist/go60/
+      - name: Build and validate Imprint firmware
+        run: nix develop --command just imprint-firmware
+      - name: Upload Imprint bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: imprint-rmk
+          path: dist/imprint/
 
   release-master:
     name: Publish master firmware
@@ -56,10 +63,17 @@ jobs:
         with:
           name: go60-rmk
           path: dist-go60
+      - name: Download Imprint bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: imprint-rmk
+          path: dist-imprint
       # The Go60 bundle's manifest.json and SHA256SUMS would collide with the
       # Glove80 bundle's as flat release assets, so it ships as one archive.
       - name: Archive Go60 bundle
         run: (cd dist-go60 && zip -r ../go60-rmk.zip .)
+      - name: Archive Imprint bundle
+        run: (cd dist-imprint && zip -r ../imprint-rmk.zip .)
       - name: Create or update commit prerelease
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,7 +89,7 @@ jobs:
             done
             tag="v${day}.${build}"
           fi
-          title="MoErgo firmware ${tag#v} (default configurations)"
+          title="RMK firmware ${tag#v} (default configurations)"
 
           previous="$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
           if [ -n "${previous}" ]; then
@@ -88,11 +102,11 @@ jobs:
             echo
             echo "${changes:-- No commits since the previous release.}"
             echo
-            echo "The Go60 firmware is attached as go60-rmk.zip."
+            echo "The Go60 firmware is attached as go60-rmk.zip, the Cyboard Imprint firmware as imprint-rmk.zip."
           } > release-notes.md
 
           if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${tag}" dist/* go60-rmk.zip \
+            gh release upload "${tag}" dist/* go60-rmk.zip imprint-rmk.zip \
               --clobber \
               --repo "${GITHUB_REPOSITORY}"
             gh release edit "${tag}" \
@@ -101,7 +115,7 @@ jobs:
               --notes-file release-notes.md \
               --repo "${GITHUB_REPOSITORY}"
           else
-            gh release create "${tag}" dist/* go60-rmk.zip \
+            gh release create "${tag}" dist/* go60-rmk.zip imprint-rmk.zip \
               --prerelease \
               --target "${GITHUB_SHA}" \
               --title "${title}" \

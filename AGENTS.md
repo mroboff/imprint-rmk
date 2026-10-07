@@ -38,6 +38,24 @@ on hardware. Build and validate its independent UF2 bundle with `just
 go60-firmware`; the official family IDs are `0x9809B007` (left) and
 `0x980AB007` (right).
 
+## The Imprint board crate
+
+`crates/imprint-rmk` is a third thin board workspace, for the wireless Cyboard
+Imprint, kept under the same rules as the two MoErgo crates: shared behavior in
+`crates/moergo-rmk`, board-local code limited to wiring, drivers and identity.
+Its hardware configuration is transcribed from Cyboard's `zmk-keyboards`
+module at tag v2026.07. It differs from the MoErgo boards in ways the hardware
+dictates: the halves have no wired link (BLE split only), the two PMW3610
+trackballs are declared in `keyboard.toml` rather than wired by hand, the
+status LED is active-high (`BOARD_STATUS_LED_ACTIVE_LOW`, a board constant the
+shared power monitor reads), the battery level comes from VDDH because RMK has
+no MAX17048 driver, and both halves flash through the Adafruit nRF52840
+bootloader (family `0xADA52840`). Its LED order is a hypothesis from the wired
+Imprint until confirmed on hardware. It shares the Go60's flash-budget
+switches (`_no_split_peripheral_battery_service`, `DEFMT_LOG = "error"`).
+Build and validate its bundle with `just imprint-firmware`; CI publishes it as
+`imprint-rmk.zip` beside the Go60's archive.
+
 ## Embedded startup latency budget
 
 Treat central startup as a latency-sensitive path with a hard practical

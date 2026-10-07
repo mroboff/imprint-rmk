@@ -15,6 +15,8 @@ pub const BOARD_CHANNEL_CEILING: u8 = 204;
 pub const BOARD_SRGB_COLOR: bool = true;
 pub const BOARD_KEEP_LED_POWER_WHILE_AWAKE: bool = false;
 pub const BOARD_KEEP_LED_POWER_WHILE_SUSPENDED: bool = false;
+/// The status LED is wired active-low on MoErgo's boards.
+pub const BOARD_STATUS_LED_ACTIVE_LOW: bool = true;
 
 #[allow(dead_code)]
 #[path = "../../moergo-rmk/src/lighting.rs"]

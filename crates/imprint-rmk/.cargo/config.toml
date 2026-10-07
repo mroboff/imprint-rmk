@@ -1,0 +1,12 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = "probe-rs run --chip nRF52840_xxAA"
+
+[build]
+target = "thumbv7em-none-eabihf"
+
+[env]
+# The Imprint central carries the Glove80's feature set plus two trackballs
+# and the largest LED frame of the three boards in the same 0xB6000
+# application partition; like the Go60 it builds at `error`.
+DEFMT_LOG = "error"
+KEYBOARD_TOML_PATH = { value = "keyboard.toml", relative = true }

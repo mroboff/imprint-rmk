@@ -1,0 +1,876 @@
+# Cyboard Imprint (wireless, Assimilator controller) RMK configuration.
+#
+# Matrix, pin, flash, LED and USB facts are transcribed from Cyboard's ZMK
+# module (https://github.com/Cyboard-DigitalTailor/zmk-keyboards at tag
+# v2026.07): boards/shields/imprint/imprint.dtsi, imprint_left.overlay,
+# imprint_right.overlay, boards/assimilator-bt.overlay and
+# boards/arm/assimilator-bt/assimilator-bt.dts. The halves talk over BLE; the
+# board has no wired split link. The two PMW3610 trackballs are declared
+# below and reach the central the way RMK forwards any split input device.
+
+[keyboard]
+name = "Imprint"
+product_name = "Imprint"
+# ZMK's default IDs, which Cyboard's firmware keeps; the name tells it apart.
+vendor_id = 0x1d50
+product_id = 0x615e
+manufacturer = "Cyboard"
+chip = "nrf52840"
+
+[rmk]
+# Five key-selectable profile slots, as Cyboard's factory keymap binds
+# BT_SEL 0-4. The USER id map shifts with this number: User0-4 select,
+# User5/6 next/previous, User7 clears the active bond, User8 toggles the
+# preferred transport. User10-13 are the board-reserved MoErgo actions.
+ble_profiles_num = 5
+split_central_max_latency_powered = 0
+split_central_max_latency_battery = 1
+morse_max_num = 64
+combo_max_num = 32
+# Depth of the queue between the Rynk session and the storage task; see the
+# Go60 configuration for why it must exceed the host's 4-cell pages.
+flash_channel_size = 16
+
+[layout]
+# The scan matrix is 14 rows by 8 columns: rows 0-6 are the left half, 7-13
+# the right, as in the ZMK matrix transform (row-offset 7). Row 0 and row 7
+# are the thumb clusters; the finger rows count up from the bottom.
+rows = 14
+cols = 8
+# The map is the board's *physical* arrangement, not its scan matrix: key
+# centres derived from this walk are the only geometry the lighting engine
+# has, so this is what "nearby" means to the spatial effects. Positions are
+# in key units from the ZMK physical layout
+# `physical_layout_imprint_function_row_full_bottom_row` (imprint-layouts.dtsi):
+# six staggered finger columns a hand and two three-key thumb rows swept
+# about a pivot below them. Written in the order of the ZMK matrix
+# transform, which is also the order the `[[keymap.layer]]` key strings are
+# read in.
+map = """
+(6,5,L,@outer) (6,4,L,@outer) (6,3,L,@half) (6,2,L) (6,1,L,@quarter) (6,0,L,@quarter) [5.5] (13,0,R,@quarter) (13,1,R,@quarter) (13,2,R) (13,3,R,@half) (13,4,R,@outer) (13,5,R,@outer)
+(5,5,L,@outer) (5,4,L,@outer) (5,3,L,@half) (5,2,L) (5,1,L,@quarter) (5,0,L,@quarter) [5.5] (12,0,R,@quarter) (12,1,R,@quarter) (12,2,R) (12,3,R,@half) (12,4,R,@outer) (12,5,R,@outer)
+(4,5,L,@outer) (4,4,L,@outer) (4,3,L,@half) (4,2,L) (4,1,L,@quarter) (4,0,L,@quarter) [5.5] (11,0,R,@quarter) (11,1,R,@quarter) (11,2,R) (11,3,R,@half) (11,4,R,@outer) (11,5,R,@outer)
+(3,5,L,@outer) (3,4,L,@outer) (3,3,L,@half) (3,2,L) (3,1,L,@quarter) (3,0,L,@quarter) [5.5] (10,0,R,@quarter) (10,1,R,@quarter) (10,2,R) (10,3,R,@half) (10,4,R,@outer) (10,5,R,@outer)
+(2,5,L,@outer) (2,4,L,@outer) (2,3,L,@half) (2,2,L) (2,1,L,@quarter) (2,0,L,@quarter) [5.5] (9,0,R,@quarter) (9,1,R,@quarter) (9,2,R) (9,3,R,@half) (9,4,R,@outer) (9,5,R,@outer)
+(1,5,L,@outer) (1,4,L,@outer) (1,3,L,@half) (1,2,L) (1,1,L,@quarter) [7.5] (8,1,R,@quarter) (8,2,R) (8,3,R,@half) (8,4,R,@outer) (8,5,R,@outer)
+[y=-0.25] [5.5] (0,3,L,@thumb_1) [r=8@(6,13.4)] (0,2,L,@thumb_2) [r=16@(6,13.4)] (0,1,L,@thumb_3) [2.5] [r=-16@(11.5,13.4)] (7,1,R,@thumb_1) [r=-8@(11.5,13.4)] (7,2,R,@thumb_2) [r=0] (7,3,R,@thumb_3)
+[5.5] (0,7,L,@thumb_1) [r=8@(6,14.4)] (0,6,L,@thumb_2) [r=16@(6,14.4)] (0,5,L,@thumb_3) [2.5] [r=-16@(11.5,14.4)] (7,5,R,@thumb_1) [r=-8@(11.5,14.4)] (7,6,R,@thumb_2) [r=0] (7,7,R,@thumb_3)
+"""
+
+# The map walk is a left-to-right cursor on a flat grid; the finger shapes
+# carry each column's stagger below the middle column, and the thumb shapes
+# walk the cursor back onto the one flat spot each fan is swung from.
+[layout.shapes]
+quarter = { y = 0.25 }
+half = { y = 0.5 }
+outer = { y = 1.25 }
+thumb_1 = { x = 0.0 }
+thumb_2 = { x = -1.0 }
+thumb_3 = { x = -2.0 }
+
+[keymap]
+layers = 16
+
+# Ported from Cyboard's factory keymap (imprint.keymap). Layers: 0 Base,
+# 1 Numpad and Nav, 2 Keyboard Control, 3 Auto Mouse, 4 Factory Test.
+# Layers 5-15 are editable capacity sized so an imported layout fits
+# without a rebuild. Substitutions from ZMK:
+#   - &bt BT_CLR / BT_SEL n  -> User10 / User0..User4
+#   - &rgb_ug RGB_TOG        -> BacklightToggle (the lighting output toggle)
+#   - &studio_unlock         -> MaintenanceModeToggle
+#   - left &bootloader       -> Bootloader; right -> User12 (forwarded)
+#   - &sys_reset             -> Reboot
+[[keymap.layer]]
+name = "Base"
+keys = """
+Escape F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11
+Equal Kc1 Kc2 Kc3 Kc4 Kc5 Kc6 Kc7 Kc8 Kc9 Kc0 Minus
+Tab Q W E R T Y U I O P Backslash
+LCtrl A S D F G H J K L Semicolon Quote
+LShift Z X C V B N M Comma Dot Slash RShift
+_ _ LGui LAlt _ _ LeftBracket RightBracket _ _
+Enter Delete Escape Grave Backspace Space
+LGui MO(1) MO(2) CapsLock MO(2) MO(1)
+"""
+
+[[keymap.layer]]
+name = "Numpad and Nav"
+keys = """
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ Kc7 Kc8 Kc9 _ _ Home Up End _ _
+_ _ Kc4 Kc5 Kc6 _ _ Left Down Right _ _
+_ _ Kc1 Kc2 Kc3 _ _ _ _ _ _ _
+_ _ _ Kc0 _ _ _ _ _ _
+_ _ _ _ _ _
+_ _ _ _ _ _
+"""
+
+[[keymap.layer]]
+name = "Keyboard Control"
+keys = """
+_ _ _ _ _ _ _ _ _ _ _ _
+User10 User0 User1 User2 User3 User4 _ BacklightToggle RgbModeForward _ _ _
+Reboot _ _ _ _ MaintenanceModeToggle BacklightToggle RgbHui RgbSai RgbVai RgbSpi Reboot
+Bootloader _ _ _ _ _ _ RgbHud RgbSad RgbVad RgbSpd User12
+TO(4) _ _ _ _ _ _ _ _ _ _ TO(4)
+TO(4) _ _ _ _ _ _ _ _ TO(4)
+_ _ _ _ _ _
+_ _ _ _ _ _
+"""
+
+[[keymap.layer]]
+name = "Auto Mouse"
+keys = """
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ MouseBtn2 MouseBtn3 MouseBtn1 _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _
+_ _ _ _ _ _
+"""
+
+[[keymap.layer]]
+name = "Factory Test"
+keys = """
+Kc0 Kc1 Kc2 Kc3 Kc4 Kc5 Kc6 Kc7 Kc8 Kc9 Kc0 Kc1
+Kc2 Kc3 Kc4 Kc5 Kc6 Kc7 Kc8 Kc9 Kc0 Kc1 Kc2 Kc3
+Kc4 Kc5 Kc6 Kc7 Kc8 Kc9 Kc0 Kc1 Kc2 Kc3 Kc4 Kc5
+Kc6 Kc7 Kc8 Kc9 Kc0 Kc1 Kc2 Kc3 Kc4 Kc5 Kc6 Kc7
+Kc8 Kc9 Kc0 Kc1 Kc2 Kc3 Kc4 Kc5 Kc6 Kc7 Kc8 Kc9
+Kc0 Kc1 Kc2 Kc3 Kc4 Kc5 Kc6 Kc7 Kc8 Kc9
+Kc0 Kc1 Kc2 Kc3 Kc4 Kc5
+Kc6 Kc7 Kc8 Kc9 Kc0 Kc1
+"""
+
+[event.keyboard]
+channel_size = 16
+pubs = 2
+subs = 4
+
+[event.layer_change]
+channel_size = 4
+pubs = 2
+# The split driver, the Rynk topic, the lighting state and the trackballs'
+# layer-driven modes. A subscriber past this count fails at boot, not build.
+subs = 4
+
+[event.lighting_changed]
+channel_size = 2
+pubs = 1
+subs = 2
+
+[event.led_indicator]
+channel_size = 3
+pubs = 2
+subs = 4
+
+[event.action]
+channel_size = 16
+pubs = 1
+subs = 1
+
+[event.battery_status]
+channel_size = 2
+pubs = 1
+subs = 1
+
+[event.peripheral_battery]
+channel_size = 3
+pubs = 1
+subs = 3
+
+[storage]
+enabled = true
+# The Assimilator carries the Adafruit nRF52 bootloader at 0xf4000 with the
+# application from 0x26000, like MoErgo's boards. The same sizing problem
+# applies (sixteen compiled layers fill eight sectors), so the store takes
+# 0xdc000-0xf4000 and memory.x caps the application at 0xdc000.
+start_addr = 0xdc000
+num_sectors = 24
+
+[ble]
+enabled = true
+advertising_fast_interval_ms = 30
+advertising_slow_interval_ms = 200
+advertising_fast_timeout_secs = 5
+
+[host]
+vial_enabled = false
+rynk_enabled = true
+insecure = false
+# Keep unattended configuration available; the Keyboard Control layer binds
+# MaintenanceModeToggle for anyone who wants the lock.
+maintenance_lock_default = false
+
+[split]
+connection = "ble"
+
+# Both halves are wired alike (imprint_left.overlay and imprint_right.overlay
+# name the same pins): columns P1.06 P1.15 P1.13 P1.11 P0.31 P0.22 P0.24
+# P0.20, rows P1.04 P0.11 P0.29 P1.00 P0.10 P0.02 P0.09, diodes row to
+# column with the columns pulled down. P0.09 and P0.10 are the NFC pins,
+# which embassy-nrf's `nfc-pins-as-gpio` feature hands over to GPIO.
+# Battery: the Assimilator's MAX17048 fuel gauge has no RMK driver, so the
+# level is read from VDDH as ZMK's `zmk,battery-nrf-vddh` node also allows.
+[split.central]
+rows = 7
+cols = 8
+row_offset = 0
+col_offset = 0
+ble_addr = [0x01, 0x49, 0x4d, 0x50, 0x52, 0xc9]
+battery_adc_pin = "vddh"
+
+[split.central.matrix]
+matrix_type = "normal"
+row2col = true
+row_pins = ["P1_04", "P0_11", "P0_29", "P1_00", "P0_10", "P0_02", "P0_09"]
+col_pins = ["P1_06", "P1_15", "P1_13", "P1_11", "P0_31", "P0_22", "P0_24", "P0_20"]
+
+# The left trackball: PMW3610 on a three-wire SPI (SCK P0.13, SDIO P0.15,
+# CS P0.19) with its motion line on P0.17, 600 CPI, axes swapped at the
+# sensor as Cyboard's `PMW3610_SWAP_XY` does. Device 0.
+[[split.central.input_device.pmw3610]]
+name = "trackball_left"
+id = 0
+spi = { instance = "bitbang0", sck = "P0_13", mosi = "P0_15", miso = "P0_15", cs = "P0_19" }
+motion = "P0_17"
+cpi = 600
+swap_xy = true
+
+[[split.peripheral]]
+rows = 7
+cols = 8
+row_offset = 7
+col_offset = 0
+ble_addr = [0x02, 0x49, 0x4d, 0x50, 0x52, 0xc9]
+battery_adc_pin = "vddh"
+
+[split.peripheral.matrix]
+matrix_type = "normal"
+row2col = true
+row_pins = ["P1_04", "P0_11", "P0_29", "P1_00", "P0_10", "P0_02", "P0_09"]
+col_pins = ["P1_06", "P1_15", "P1_13", "P1_11", "P0_31", "P0_22", "P0_24", "P0_20"]
+
+# The right trackball, wired the same; device 1, forwarded to the central.
+[[split.peripheral.input_device.pmw3610]]
+name = "trackball_right"
+id = 1
+spi = { instance = "bitbang0", sck = "P0_13", mosi = "P0_15", miso = "P0_15", cs = "P0_19" }
+motion = "P0_17"
+cpi = 600
+swap_xy = true
+
+[lighting]
+topology_revision = 1
+
+[lighting.controls]
+wake_layers = [2]
+
+[[lighting.zone]]
+id = 1
+name = "per-key"
+
+[[lighting.output]]
+node = 0
+id = 0
+pixel_count = 41
+capabilities = ["rgb", "addressable"]
+
+[[lighting.output]]
+node = 1
+id = 0
+pixel_count = 41
+capabilities = ["rgb", "addressable"]
+
+[lighting.background]
+enabled = false
+hue = 0
+saturation = 0
+value = 0
+speed = 128
+mode = "solid"
+
+# UNVERIFIED LED ORDER. Cyboard's ZMK files declare an arbitrary chain
+# length (150), so this table is the wired (QMK) Imprint's rgb_matrix order
+# carried over as a hypothesis: forty-one LEDs a half, walked column by
+# column from the inner column outward, each from the bottom row up, then
+# the thumbs. It must be confirmed on hardware (Keyboard Curator's KEY-36).
+# The emitter ids number the left half 0-40 and the right 41-81, each in
+# chain order.
+[[lighting.emitter]]
+id = 0
+key = [3, 0]
+zones = [1]
+node = 0
+output = 0
+physical_index = 0
+[[lighting.emitter]]
+id = 1
+key = [2, 0]
+zones = [1]
+node = 0
+output = 0
+physical_index = 1
+[[lighting.emitter]]
+id = 2
+key = [6, 0]
+zones = [1]
+node = 0
+output = 0
+physical_index = 2
+[[lighting.emitter]]
+id = 3
+key = [5, 0]
+zones = [1]
+node = 0
+output = 0
+physical_index = 3
+[[lighting.emitter]]
+id = 4
+key = [4, 0]
+zones = [1]
+node = 0
+output = 0
+physical_index = 4
+[[lighting.emitter]]
+id = 5
+key = [3, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 5
+[[lighting.emitter]]
+id = 6
+key = [2, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 6
+[[lighting.emitter]]
+id = 7
+key = [1, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 7
+[[lighting.emitter]]
+id = 8
+key = [6, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 8
+[[lighting.emitter]]
+id = 9
+key = [5, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 9
+[[lighting.emitter]]
+id = 10
+key = [4, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 10
+[[lighting.emitter]]
+id = 11
+key = [3, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 11
+[[lighting.emitter]]
+id = 12
+key = [2, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 12
+[[lighting.emitter]]
+id = 13
+key = [1, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 13
+[[lighting.emitter]]
+id = 14
+key = [6, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 14
+[[lighting.emitter]]
+id = 15
+key = [5, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 15
+[[lighting.emitter]]
+id = 16
+key = [4, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 16
+[[lighting.emitter]]
+id = 17
+key = [3, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 17
+[[lighting.emitter]]
+id = 18
+key = [2, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 18
+[[lighting.emitter]]
+id = 19
+key = [1, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 19
+[[lighting.emitter]]
+id = 20
+key = [6, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 20
+[[lighting.emitter]]
+id = 21
+key = [5, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 21
+[[lighting.emitter]]
+id = 22
+key = [4, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 22
+[[lighting.emitter]]
+id = 23
+key = [3, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 23
+[[lighting.emitter]]
+id = 24
+key = [2, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 24
+[[lighting.emitter]]
+id = 25
+key = [1, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 25
+[[lighting.emitter]]
+id = 26
+key = [6, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 26
+[[lighting.emitter]]
+id = 27
+key = [5, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 27
+[[lighting.emitter]]
+id = 28
+key = [4, 4]
+zones = [1]
+node = 0
+output = 0
+physical_index = 28
+[[lighting.emitter]]
+id = 29
+key = [3, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 29
+[[lighting.emitter]]
+id = 30
+key = [2, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 30
+[[lighting.emitter]]
+id = 31
+key = [1, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 31
+[[lighting.emitter]]
+id = 32
+key = [6, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 32
+[[lighting.emitter]]
+id = 33
+key = [5, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 33
+[[lighting.emitter]]
+id = 34
+key = [4, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 34
+[[lighting.emitter]]
+id = 35
+key = [0, 3]
+zones = [1]
+node = 0
+output = 0
+physical_index = 35
+[[lighting.emitter]]
+id = 36
+key = [0, 2]
+zones = [1]
+node = 0
+output = 0
+physical_index = 36
+[[lighting.emitter]]
+id = 37
+key = [0, 1]
+zones = [1]
+node = 0
+output = 0
+physical_index = 37
+[[lighting.emitter]]
+id = 38
+key = [0, 7]
+zones = [1]
+node = 0
+output = 0
+physical_index = 38
+[[lighting.emitter]]
+id = 39
+key = [0, 6]
+zones = [1]
+node = 0
+output = 0
+physical_index = 39
+[[lighting.emitter]]
+id = 40
+key = [0, 5]
+zones = [1]
+node = 0
+output = 0
+physical_index = 40
+[[lighting.emitter]]
+id = 41
+key = [10, 0]
+zones = [1]
+node = 1
+output = 0
+physical_index = 0
+[[lighting.emitter]]
+id = 42
+key = [9, 0]
+zones = [1]
+node = 1
+output = 0
+physical_index = 1
+[[lighting.emitter]]
+id = 43
+key = [13, 0]
+zones = [1]
+node = 1
+output = 0
+physical_index = 2
+[[lighting.emitter]]
+id = 44
+key = [12, 0]
+zones = [1]
+node = 1
+output = 0
+physical_index = 3
+[[lighting.emitter]]
+id = 45
+key = [11, 0]
+zones = [1]
+node = 1
+output = 0
+physical_index = 4
+[[lighting.emitter]]
+id = 46
+key = [10, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 5
+[[lighting.emitter]]
+id = 47
+key = [9, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 6
+[[lighting.emitter]]
+id = 48
+key = [8, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 7
+[[lighting.emitter]]
+id = 49
+key = [13, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 8
+[[lighting.emitter]]
+id = 50
+key = [12, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 9
+[[lighting.emitter]]
+id = 51
+key = [11, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 10
+[[lighting.emitter]]
+id = 52
+key = [10, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 11
+[[lighting.emitter]]
+id = 53
+key = [9, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 12
+[[lighting.emitter]]
+id = 54
+key = [8, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 13
+[[lighting.emitter]]
+id = 55
+key = [13, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 14
+[[lighting.emitter]]
+id = 56
+key = [12, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 15
+[[lighting.emitter]]
+id = 57
+key = [11, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 16
+[[lighting.emitter]]
+id = 58
+key = [10, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 17
+[[lighting.emitter]]
+id = 59
+key = [9, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 18
+[[lighting.emitter]]
+id = 60
+key = [8, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 19
+[[lighting.emitter]]
+id = 61
+key = [13, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 20
+[[lighting.emitter]]
+id = 62
+key = [12, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 21
+[[lighting.emitter]]
+id = 63
+key = [11, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 22
+[[lighting.emitter]]
+id = 64
+key = [10, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 23
+[[lighting.emitter]]
+id = 65
+key = [9, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 24
+[[lighting.emitter]]
+id = 66
+key = [8, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 25
+[[lighting.emitter]]
+id = 67
+key = [13, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 26
+[[lighting.emitter]]
+id = 68
+key = [12, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 27
+[[lighting.emitter]]
+id = 69
+key = [11, 4]
+zones = [1]
+node = 1
+output = 0
+physical_index = 28
+[[lighting.emitter]]
+id = 70
+key = [10, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 29
+[[lighting.emitter]]
+id = 71
+key = [9, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 30
+[[lighting.emitter]]
+id = 72
+key = [8, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 31
+[[lighting.emitter]]
+id = 73
+key = [13, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 32
+[[lighting.emitter]]
+id = 74
+key = [12, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 33
+[[lighting.emitter]]
+id = 75
+key = [11, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 34
+[[lighting.emitter]]
+id = 76
+key = [7, 3]
+zones = [1]
+node = 1
+output = 0
+physical_index = 35
+[[lighting.emitter]]
+id = 77
+key = [7, 2]
+zones = [1]
+node = 1
+output = 0
+physical_index = 36
+[[lighting.emitter]]
+id = 78
+key = [7, 1]
+zones = [1]
+node = 1
+output = 0
+physical_index = 37
+[[lighting.emitter]]
+id = 79
+key = [7, 7]
+zones = [1]
+node = 1
+output = 0
+physical_index = 38
+[[lighting.emitter]]
+id = 80
+key = [7, 6]
+zones = [1]
+node = 1
+output = 0
+physical_index = 39
+[[lighting.emitter]]
+id = 81
+key = [7, 5]
+zones = [1]
+node = 1
+output = 0
+physical_index = 40

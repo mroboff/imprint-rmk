@@ -825,6 +825,16 @@ pub struct PowerMonitor {
     status_pwm: SimplePwm<'static>,
 }
 
+/// The status LED's duty in the polarity the board wires it: MoErgo's
+/// boards drive theirs active-low, the Imprint's is active-high.
+fn status_duty(duty: u16) -> DutyCycle {
+    if crate::BOARD_STATUS_LED_ACTIVE_LOW {
+        DutyCycle::inverted(duty)
+    } else {
+        DutyCycle::normal(duty)
+    }
+}
+
 pub fn power_monitor(
     pwm: Peri<'static, PWM0>,
     status_led_pin: Peri<'static, impl Pin>,
@@ -834,10 +844,7 @@ pub fn power_monitor(
     pwm_config.prescaler = Prescaler::Div1;
     pwm_config.max_duty = STATUS_PWM_TOP;
     let mut status_pwm = SimplePwm::new_1ch(pwm, status_led_pin, &pwm_config);
-    status_pwm.set_duty(
-        0,
-        DutyCycle::inverted(if powered { STATUS_PWM_DUTY } else { 0 }),
-    );
+    status_pwm.set_duty(0, status_duty(if powered { STATUS_PWM_DUTY } else { 0 }));
     PowerMonitor {
         powered,
         sleeping: false,
@@ -856,7 +863,7 @@ impl PowerMonitor {
         } else {
             0
         };
-        self.status_pwm.set_duty(0, DutyCycle::inverted(duty));
+        self.status_pwm.set_duty(0, status_duty(duty));
     }
 
     fn refresh_power(&mut self) {

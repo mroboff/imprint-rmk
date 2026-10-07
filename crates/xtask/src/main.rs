@@ -21,10 +21,44 @@ const UF2_FLAG_FAMILY_ID: u32 = 0x0000_2000;
 const UF2_PAYLOAD_SIZE: usize = 256;
 const APPLICATION_START: u32 = 0x0002_6000;
 const APPLICATION_END: u32 = 0x000d_c000;
-const GO60_BUILD_ROOT: &str = "/tmp/moergo-rmk-go60-source";
-const GO60_BUILD_CONFIG_DIR: &str = "/tmp/moergo-rmk-go60-config";
-const GO60_CARGO_HOME: &str = "/tmp/moergo-rmk-go60-cargo";
-const GO60_BUILD_LOCK: &str = "/tmp/moergo-rmk-go60-build.lock";
+
+/// A board whose release bundle is built from a canonical copy of the
+/// tracked tree, so the image does not depend on where the checkout lives.
+struct BoardSpec {
+    /// The crate under `crates/`, also the bundle's project name.
+    crate_name: &'static str,
+    /// The short name in the canonical build's paths under /tmp.
+    tag: &'static str,
+    /// The prefix of the environment variables the crate's build.rs reads.
+    env_prefix: &'static str,
+    /// Where the bundle lands, under the repository root.
+    dist_dir: &'static str,
+    halves: [Half; 2],
+}
+
+const GO60: BoardSpec = BoardSpec {
+    crate_name: "go60-rmk",
+    tag: "go60",
+    env_prefix: "GO60",
+    dist_dir: "dist/go60",
+    halves: [
+        Half::new("left", "lh", "go60_lh", 0x9809_b007),
+        Half::new("right", "rh", "go60_rh", 0x980a_b007),
+    ],
+};
+
+/// The Cyboard Imprint flashes through the Adafruit nRF52840 bootloader,
+/// whose family id is the same for both halves.
+const IMPRINT: BoardSpec = BoardSpec {
+    crate_name: "imprint-rmk",
+    tag: "imprint",
+    env_prefix: "IMPRINT",
+    dist_dir: "dist/imprint",
+    halves: [
+        Half::new("left", "lh", "imprint_lh", 0xada5_2840),
+        Half::new("right", "rh", "imprint_rh", 0xada5_2840),
+    ],
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -42,6 +76,7 @@ fn run() -> Result<()> {
         Some("check") if args.next().is_none() => check(&root),
         Some("dist") if args.next().is_none() => dist(&root),
         Some("dist-go60") if args.next().is_none() => dist_go60(&root),
+        Some("dist-imprint") if args.next().is_none() => dist_imprint(&root),
         Some("verify-config-profile") => {
             let stock = args.next().ok_or("verify-config-profile requires STOCK CONFIGURED")?;
             let configured = args.next().ok_or("verify-config-profile requires STOCK CONFIGURED")?;
@@ -324,68 +359,76 @@ fn dist(root: &Path) -> Result<()> {
 }
 
 fn dist_go60(root: &Path) -> Result<()> {
+    dist_board(root, &GO60)
+}
+
+fn dist_imprint(root: &Path) -> Result<()> {
+    dist_board(root, &IMPRINT)
+}
+
+fn dist_board(root: &Path, board: &BoardSpec) -> Result<()> {
     let allow_dirty = env::var("MOERGO_ALLOW_DIRTY").as_deref() == Ok("1")
-        || env::var("GO60_ALLOW_DIRTY").as_deref() == Ok("1");
+        || env::var(format!("{}_ALLOW_DIRTY", board.env_prefix)).as_deref() == Ok("1");
     let rmk_commit = validate_submodule(root, allow_dirty)?;
     let dirty = !git(root, &["status", "--porcelain", "--untracked-files=normal"])?.is_empty();
     if dirty && !allow_dirty {
-        return Err(
-            "Go60 release bundles require a clean repository (set MOERGO_ALLOW_DIRTY=1 only for local validation)"
-                .into(),
-        );
+        return Err(format!(
+            "{} release bundles require a clean repository (set MOERGO_ALLOW_DIRTY=1 only for local validation)",
+            board.crate_name
+        )
+        .into());
     }
 
+    let crate_dir = format!("crates/{}", board.crate_name);
     let version = toml_value(
-        root.join("crates/go60-rmk/Cargo.toml"),
+        root.join(&crate_dir).join("Cargo.toml"),
         &["package", "version"],
     )?;
     let rust_toolchain = toml_value(root.join("rust-toolchain.toml"), &["toolchain", "channel"])?;
     let source_commit = git(root, &["rev-parse", "HEAD"])?;
     let rmk_version = deterministic_submodule_identity(root, &rmk_commit)?;
     let config_commit = env::var("MOERGO_CONFIG_GIT_COMMIT")
-        .or_else(|_| env::var("GO60_CONFIG_GIT_COMMIT"))
+        .or_else(|_| env::var(format!("{}_CONFIG_GIT_COMMIT", board.env_prefix)))
         .unwrap_or_else(|_| "standalone".to_owned());
     let config_dirty = env::var("MOERGO_CONFIG_GIT_DIRTY")
-        .or_else(|_| env::var("GO60_CONFIG_GIT_DIRTY"))
+        .or_else(|_| env::var(format!("{}_CONFIG_GIT_DIRTY", board.env_prefix)))
         .unwrap_or_else(|_| "false".to_owned());
     let source_dirty = if dirty { "true" } else { "false" };
 
-    let firmware_dir = root.join("crates/go60-rmk");
+    let firmware_dir = root.join(&crate_dir);
     let config_path = effective_config_path(&firmware_dir);
     let config_digests = config_profile::digests(&config_path)?;
     let build_hash_seed = firmware_build_hash_seed(&source_commit, &rmk_commit, &config_digests);
-    let build = CanonicalGo60Build::prepare(root, &config_path)?;
-    let build_firmware_dir = build.root.join("crates/go60-rmk");
+    let build = CanonicalBuild::prepare(root, &config_path, board.tag)?;
+    let build_firmware_dir = build.root.join(&crate_dir);
     let rustflags = reproducible_rustflags(&build.root, &build.config_path);
+    let commit_var = format!("{}_GIT_COMMIT", board.env_prefix);
+    let dirty_var = format!("{}_GIT_DIRTY", board.env_prefix);
     // `--locked` refuses a stale lockfile instead of silently rewriting it:
     // that rewrite dirties the tree mid-run, and the next bundle then fails
     // the clean-repository check with no hint of the real cause.
-    for binary in ["go60_lh", "go60_rh"] {
+    for half in &board.halves {
         run_command(
             &build_firmware_dir,
             "cargo",
-            &["build", "--locked", "--release", "--bin", binary],
+            &["build", "--locked", "--release", "--bin", half.binary],
             &[
-                ("GO60_GIT_COMMIT", &source_commit),
-                ("GO60_GIT_DIRTY", source_dirty),
+                (&commit_var, &source_commit),
+                (&dirty_var, source_dirty),
                 ("MOERGO_RMK_GIT_VERSION", &rmk_version),
                 ("RMK_BUILD_HASH_SEED", &build_hash_seed),
                 ("KEYBOARD_TOML_PATH", build.config_path_str()),
-                ("CARGO_HOME", GO60_CARGO_HOME),
+                ("CARGO_HOME", &build.cargo_home),
                 ("RUSTFLAGS", &rustflags),
             ],
         )?;
     }
 
     let target = build_firmware_dir.join("target/thumbv7em-none-eabihf/release");
-    let dist = output_dir(root, "dist/go60");
+    let dist = output_dir(root, board.dist_dir);
     fs::create_dir_all(&dist)?;
-    let halves = [
-        Half::new("left", "lh", "go60_lh", 0x9809_b007),
-        Half::new("right", "rh", "go60_rh", 0x980a_b007),
-    ];
-    for half in &halves {
-        let base = format!("go60-rmk-{version}-{}", half.suffix);
+    for half in &board.halves {
+        let base = format!("{}-{version}-{}", board.crate_name, half.suffix);
         let elf = dist.join(format!("{base}.elf"));
         fs::copy(target.join(half.binary), &elf)?;
         set_readable_permissions(&elf)?;
@@ -397,7 +440,7 @@ fn dist_go60(root: &Path) -> Result<()> {
 
     package_release(
         &dist,
-        "go60-rmk",
+        board.crate_name,
         &version,
         &source_commit,
         dirty,
@@ -407,7 +450,7 @@ fn dist_go60(root: &Path) -> Result<()> {
         &rmk_version,
         &rust_toolchain,
         &config_digests,
-        &halves,
+        &board.halves,
     )
 }
 
@@ -463,41 +506,44 @@ fn firmware_build_hash_seed(
     )
 }
 
-struct CanonicalGo60Build {
+struct CanonicalBuild {
     root: PathBuf,
     config_dir: PathBuf,
     config_path: PathBuf,
     config_path_text: String,
+    cargo_home: String,
     lock_path: PathBuf,
 }
 
-impl CanonicalGo60Build {
-    fn prepare(root: &Path, config_path: &Path) -> Result<Self> {
-        let lock_path = PathBuf::from(GO60_BUILD_LOCK);
+impl CanonicalBuild {
+    fn prepare(root: &Path, config_path: &Path, tag: &str) -> Result<Self> {
+        let lock_path = PathBuf::from(format!("/tmp/moergo-rmk-{tag}-build.lock"));
         let mut lock = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&lock_path)
             .map_err(|error| {
                 format!(
-                    "cannot acquire the canonical Go60 build lock {}: {error}",
+                    "cannot acquire the canonical {tag} build lock {}: {error}",
                     lock_path.display()
                 )
             })?;
         writeln!(lock, "{}", std::process::id())?;
 
+        let config_dir = format!("/tmp/moergo-rmk-{tag}-config");
         let build = Self {
-            root: PathBuf::from(GO60_BUILD_ROOT),
-            config_dir: PathBuf::from(GO60_BUILD_CONFIG_DIR),
-            config_path: PathBuf::from(GO60_BUILD_CONFIG_DIR).join("keyboard.toml"),
-            config_path_text: format!("{GO60_BUILD_CONFIG_DIR}/keyboard.toml"),
+            root: PathBuf::from(format!("/tmp/moergo-rmk-{tag}-source")),
+            config_dir: PathBuf::from(&config_dir),
+            config_path: PathBuf::from(&config_dir).join("keyboard.toml"),
+            config_path_text: format!("{config_dir}/keyboard.toml"),
+            cargo_home: format!("/tmp/moergo-rmk-{tag}-cargo"),
             lock_path,
         };
         build.reset()?;
         copy_tracked_tree(root, &build.root)?;
         fs::create_dir_all(&build.config_dir)?;
         fs::copy(config_path, &build.config_path)?;
-        fs::create_dir_all(GO60_CARGO_HOME)?;
+        fs::create_dir_all(&build.cargo_home)?;
         Ok(build)
     }
 
@@ -515,7 +561,7 @@ impl CanonicalGo60Build {
     }
 }
 
-impl Drop for CanonicalGo60Build {
+impl Drop for CanonicalBuild {
     fn drop(&mut self) {
         let _ = self.reset();
         let _ = fs::remove_file(&self.lock_path);

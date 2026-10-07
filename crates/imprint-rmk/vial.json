@@ -1,0 +1,8 @@
+{
+  "name": "Imprint",
+  "vendorId": "0x1D50",
+  "productId": "0x615E",
+  "lighting": "none",
+  "matrix": { "rows": 14, "cols": 8 },
+  "layouts": { "keymap": [] }
+}

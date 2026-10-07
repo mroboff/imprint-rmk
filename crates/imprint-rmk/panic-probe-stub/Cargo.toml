@@ -1,0 +1,9 @@
+# Satisfies the `use panic_probe as _;` the rmk entry macro emits while the
+# real panic handler lives in moergo's panic_store, which persists the report
+# across the reset instead of halting for the watchdog.
+[package]
+name = "panic-probe"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
